@@ -1,0 +1,48 @@
+/* Iris Trips — additions on top of iris-ranking's style.css. */
+
+main { max-width: 760px; }
+
+/* festival cards (ranked rows + pool) */
+.fest-body { min-width: 0; display: flex; flex-direction: column; gap: 0.15rem; }
+.fest-head { display: flex; align-items: baseline; gap: 0.4rem; }
+.fest-flag { font-size: 1.15rem; line-height: 1; }
+.fest-facts { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.15rem; }
+.fact { font-size: 0.75rem; font-weight: 600; border-radius: 999px;
+  padding: 0.08rem 0.55rem; white-space: nowrap; }
+.fact.cost { background: #eef4ea; color: #2f5a1e; border: 1px solid #cfe2c4; cursor: help; }
+.fact.hard { background: #fff1cc; color: #6b4a00; border: 1px solid #f1dc9c; }
+.fest-blurb { font-size: 0.85rem; color: #55534d; }
+.ranked-item.fest-item { padding: 0.65rem 0.5rem; margin-bottom: 0.35rem;
+  border-bottom: none; }
+.ranked-item[draggable="true"] { cursor: grab; }
+.fest-card { padding: 0.75rem 0.15rem; }
+.all-ranked { color: #1d7a34; font-weight: 600; margin: 0.6rem 0 0; }
+.sec-ranking h2 { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; }
+
+/* admin */
+.matrix td, .matrix th { text-align: center; white-space: nowrap; }
+.matrix th.rowhead { text-align: left; white-space: normal; min-width: 9rem; }
+.matrix td.win { background: #e3eef8; color: #174a7c; font-weight: 700; }
+.matrix td.loss { background: #fbe7e1; color: #8a2a17; }
+.matrix td.self { background: #f0eee8; }
+.noteform input { width: 100%; min-width: 9rem; }
+
+/* reveal */
+.countdown { text-align: center; }
+.countdown .slot { border-radius: 12px; padding: 0.9rem 1rem; margin: 0.6rem 0;
+  background: #f7f6fc; border: 1px solid #e3e0f2; }
+.countdown .slot.top { background: linear-gradient(180deg, #fdf3d5, #fff);
+  border-color: #e0b32e; box-shadow: 0 4px 18px rgba(181, 137, 0, 0.25); }
+.countdown .slot .big { font-family: "Source Serif 4", Georgia, serif; font-size: 1.3rem;
+  font-weight: 700; color: #2d2a4a; }
+.countdown .slot.top .big { font-size: 1.6rem; }
+.countdown .slot .rank { font-weight: 700; color: #7a5c00; letter-spacing: 0.04em;
+  text-transform: uppercase; font-size: 0.8rem; }
+.countdown .slot { animation: pop-in 0.45s ease both; }
+@keyframes pop-in { from { opacity: 0; transform: translateY(10px) scale(0.97); } }
+#reveal-next { margin-top: 0.4rem; }
+.ballot-grid ol { margin: 0.3rem 0 0; padding-left: 1.4rem; }
+.ballot-grid .card { margin: 0; }
+@media (prefers-reduced-motion: reduce) {
+  .countdown .slot { animation: none; }
+}

@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+{% block title %}The results — Iris Trips{% endblock %}
+{% block banners %}{% endblock %}
+{% block content %}
+{% if not reveal_open %}
+<div class="banner provisional">👀 Admin preview — members can't see this until you start
+the reveal.</div>
+{% endif %}
+
+<section class="card countdown">
+  <h1>Where is Iris going in 2027? ✈️</h1>
+  <p class="hint">{{ n_voters }} Irisians ranked {{ n_options }} festivals. We'll apply in
+  this order, starting at the top, until we get a spot.</p>
+  <div id="slots"></div>
+  <button id="reveal-next" class="primary" type="button">Reveal #{{ n_options }}</button>
+  <button id="reveal-all" class="linklike" type="button">Skip to the full list</button>
+</section>
+
+<div id="explore" class="hidden">
+<section class="card">
+  <h2>The full picture</h2>
+  <div class="table-scroll">
+  <table class="results">
+    <thead><tr><th>#</th><th>Festival</th><th>Score</th><th>#1 votes</th><th>Distribution</th></tr></thead>
+    <tbody>
+    {% for r in rows %}
+      <tr><td>{{ r.rank }}{% if r.tie_group %}<span class="tie" title="statistically tied">⟨tie⟩</span>{% endif %}</td>
+        <td>{{ r.f['flag'] }} <strong>{{ r.f['name'] }}</strong>
+          <span class="meta">{{ r.f['place'] }} · {{ r.f['dates'] }}</span></td>
+        <td>{{ '%.3f' | format(r.res.adjusted) }}</td>
+        <td>{{ r.firsts }}</td>
+        <td>{{ r.spark | safe }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  <p class="hint">Score: higher is better, and 0.5 is the middle. If everyone ranked a festival first it would score 0.9; last, 0.1. The bars show how
+  many voters put the festival in each place, from last (left) to first (right).
+  <a href="{{ url_for('method') }}">How this is computed →</a></p>
+</section>
+
+<section class="card">
+  <h2>Head-to-head</h2>
+  <p class="hint">How many voters put the row festival above the column festival, against
+  how many did the opposite.
+  {% if condorcet %}🏆 <strong>{{ condorcet['name'] }}</strong> beats every other option
+  head-to-head.{% endif %}</p>
+  <div class="table-scroll">
+  <table class="results matrix">
+    <thead><tr><th></th>
+      {% for row in matrix %}<th title="{{ row.f['name'] }}">{{ row.f['flag'] }}</th>{% endfor %}
+    </tr></thead>
+    <tbody>
+    {% for row in matrix %}
+      <tr><th class="rowhead">{{ row.f['flag'] }} {{ row.f['name'] }}</th>
+      {% for c in row.cells %}
+        {% if c is none %}<td class="self">—</td>
+        {% else %}<td class="{{ 'win' if c.w > c.l else ('loss' if c.w < c.l else '') }}">{{ c.w }}–{{ c.l }}</td>{% endif %}
+      {% endfor %}
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section class="card">
+  <h2>Every ballot</h2>
+  <div class="ballot-grid">
+  {% for b in ballots_view %}
+    <div class="card">
+      <strong>{{ b.voter }}</strong>
+      {% set m = twins.get(b.voter) %}
+      {% if m and m.twin.rho > 0 %}<div class="meta">👯 taste twin: {{ m.twin.name }}</div>{% endif %}
+      <ol>{% for f in b.entries %}<li>{{ f['flag'] }} {{ f['name'] }}</li>{% endfor %}</ol>
+    </div>
+  {% endfor %}
+  </div>
+</section>
+</div>
+
+<script>
+const COUNTDOWN = {{ countdown_json | safe }};   // last place first
+(() => {
+  const slots = document.getElementById("slots");
+  const next = document.getElementById("reveal-next");
+  const all = document.getElementById("reveal-all");
+  const explore = document.getElementById("explore");
+  let i = 0;
+
+  function show(c) {
+    const div = document.createElement("div");
+    div.className = "slot" + (c.rank === 1 ? " top" : "");
+    const rank = document.createElement("div");
+    rank.className = "rank";
+    rank.textContent = (c.rank === 1 ? "🏆 Plan A" : `#${c.rank}`)
+      + (c.tied_with_prev ? ` · statistically tied with #${c.rank + 1}` : "");
+    const big = document.createElement("div");
+    big.className = "big";
+    big.textContent = `${c.flag} ${c.name}`;
+    const meta = document.createElement("div");
+    meta.className = "meta";
+    meta.textContent = `${c.place} · ${c.dates} · score ${c.adjusted.toFixed(3)} · `
+      + `${c.firsts} first-place vote${c.firsts === 1 ? "" : "s"}`;
+    div.append(rank, big, meta);
+    slots.prepend(div);              // best ends up on top
+  }
+
+  function finish() {
+    next.classList.add("hidden");
+    all.classList.add("hidden");
+    explore.classList.remove("hidden");
+  }
+
+  next.addEventListener("click", () => {
+    if (i < COUNTDOWN.length) show(COUNTDOWN[i++]);
+    if (i >= COUNTDOWN.length) finish();
+    else next.textContent = COUNTDOWN[i].rank === 1 ? "🥁 Reveal plan A!" : `Reveal #${COUNTDOWN[i].rank}`;
+  });
+  all.addEventListener("click", () => {
+    while (i < COUNTDOWN.length) show(COUNTDOWN[i++]);
+    finish();
+  });
+  if (!COUNTDOWN.length) finish();
+})();
+</script>
+{% endblock %}

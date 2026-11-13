@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}Voting &amp; reveal — Iris Trips{% endblock %}
+{% block content %}
+<section class="card">
+  <h1>Voting control</h1>
+  <p>Status:
+    {% if voting_open %}<strong class="ok">OPEN</strong>
+      {% if deadline %} — closes automatically {{ deadline }} (Zurich time){% endif %}
+    {% else %}<strong class="err">CLOSED</strong>{% endif %}
+  </p>
+  <form method="post" action="{{ url_for('admin_voting_open') }}" class="stack">
+    <label>Close automatically at
+      <input name="until" type="datetime-local" value="2026-11-25T23:59">
+      <span class="hint-inline">(Zurich time)</span>
+    </label>
+    <label>…or after
+      <input name="hours" type="number" step="0.5" min="0.5" placeholder="e.g. 24" class="w-input">
+      hours <span class="hint-inline">(used only if the date above is empty; clear both for no timer)</span>
+    </label>
+    <button type="submit" class="primary">{{ 'Update deadline' if voting_open else 'Open voting' }}</button>
+  </form>
+  <form method="post" action="{{ url_for('admin_voting_close') }}"
+        onsubmit="return confirm('Close voting now?')">
+    <button type="submit" class="danger">Close voting now</button>
+  </form>
+  <p class="hint">Re-opening replaces the deadline. The site sends no notifications, so
+  announce deadline changes in the group chat.</p>
+</section>
+
+<section class="card">
+  <h1>Reveal mode 🎁</h1>
+  <p>Status:
+    {% if reveal_flag %}<strong class="ok">REVEAL LIVE</strong> — results are public
+    {% else %}<strong class="err">OFF</strong>{% endif %}
+  </p>
+  {% if not reveal_flag %}
+  <form method="post" action="{{ url_for('admin_reveal_open') }}"
+        onsubmit="return confirm('This closes voting and publishes all results — aggregate rankings AND individual ballots with names — to anyone with the link. Ready?')">
+    <button type="submit" class="primary">🎉 Start the reveal</button>
+  </form>
+  {% else %}
+  <form method="post" action="{{ url_for('admin_reveal_close') }}"
+        onsubmit="return confirm('Hide the results again?')">
+    <button type="submit" class="danger">Turn off reveal mode</button>
+  </form>
+  {% endif %}
+  <p class="hint">Starting the reveal <strong>closes voting immediately</strong>, so the
+  published results are frozen. Members get a #5 → #1 countdown, the head-to-head
+  table and every ballot with names. No login needed.
+  <a href="{{ url_for('reveal') }}">Preview the reveal page →</a> (admins can always
+  preview it, even while it's off).</p>
+</section>
+{% endblock %}

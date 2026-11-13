@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="landing">
+  {% if reveal_open %}
+  <section class="card reveal-cta">
+    <a class="reveal-btn" href="{{ url_for('reveal') }}">🎁 The results are in — tap to reveal</a>
+    <p class="hint tiny">No login needed — everyone sees everything.</p>
+  </section>
+  {% endif %}
+  <section class="card hero">
+    <img src="{{ url_for('static', filename='favicon_light.png') }}" alt="" class="hero-logo">
+    <h1>Hey there, fellow Irisian!</h1>
+    <p class="pitch">The Iris trips working group has picked <strong>5 choir festivals</strong>
+    for 2027. Rank them from favorite to least favorite. Some festivals take only a
+    few choirs and we might not get a spot, so your ranking also gives us plans B, C, D
+    and E.</p>
+    {% if error %}<p class="error">{{ error }}</p>{% endif %}
+    <form method="post" action="{{ url_for('auth') }}" class="authform">
+      <label>Name <input name="username" required maxlength="40" autocomplete="username"
+             placeholder="e.g. Isabel"></label>
+      <label>PIN <input name="pin" type="password" required minlength="4"
+             inputmode="numeric" autocomplete="current-password"
+             placeholder="4+ digits — don't forget it!"></label>
+      <button type="submit" class="primary">Let's go! ✈️</button>
+    </form>
+    <p class="hint tiny">New here? Entering a new name + PIN creates your account.
+    Returning? Use the same name and PIN.</p>
+  </section>
+
+  <section class="card">
+    <h2>How it works</h2>
+    <ul class="howto">
+      <li>Read up on each festival (the
+          <a href="{{ coda_url }}" target="_blank" rel="noopener">Coda page</a> has
+          details), then put all 5 in order: 1 = where you'd most like to go.</li>
+      <li>Everything saves automatically, so you can come back and change it any time
+          before the deadline{% if deadline %} ({{ deadline }}){% else %} (25 November){% endif %}.</li>
+      <li>💶 Iris expects to cover about <strong>{{ iris_chf }} CHF per person</strong>.
+          If cost is a concern, please talk to a board member you trust. We'll find a
+          solution 💪🏻.</li>
+    </ul>
+  </section>
+
+  <section class="card fineprint">
+    <details>
+      <summary>The fine print: who sees what, and how the destination is chosen</summary>
+      <p>The organizing team can see individual ballots during voting. After voting closes,
+      the aggregate results and individual rankings are shared with all members.</p>
+      <p>The ranking sets the order in which we apply. Whether we get a spot also depends on
+      the festivals' selection, registration deadlines and budget.</p>
+      <p><a href="{{ url_for('method') }}">Read exactly how the rankings are combined →</a></p>
+    </details>
+  </section>
+</div>
+{% endblock %}

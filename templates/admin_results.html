@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block title %}Results — Iris Trips{% endblock %}
+{% block content %}
+{% if voting_open %}
+<div class="banner provisional">⚠️ <strong>Provisional — voting still open.</strong>
+Scores shift as ballots come in.</div>
+{% endif %}
+
+<section class="card">
+  <div class="results-controls">
+    <form method="post" action="{{ url_for('admin_setw') }}" class="inline">
+      <label>Shrinkage w:
+        <input name="w" type="number" step="0.5" min="0" value="{{ w }}" class="w-input">
+      </label>
+      <button type="submit">Apply</button>
+      <span class="hint-inline">(0 disables shrinkage)</span>
+    </form>
+    <span class="inline">
+      <a href="{{ url_for('export_ballots') }}">⬇ ballots.csv</a>
+      <a href="{{ url_for('export_results') }}">⬇ results.csv</a>
+    </span>
+  </div>
+  <p class="hint">{{ n_voters }} voter(s) have started, {{ n_complete }} ranked all
+  {{ n_options }}. Ties marked ⟨T·n⟩ are statistically indistinguishable, so settle them
+  by judgment (or by the head-to-head table below).</p>
+
+  <div class="table-scroll">
+  <table class="results">
+    <thead><tr>
+      <th>#</th><th>Festival</th><th>Adjusted</th><th>#1 votes</th><th>Last</th>
+      <th>Raw</th><th>Coverage</th><th>Distribution</th><th>Note</th>
+    </tr></thead>
+    <tbody>
+    {% for r in rows %}
+      <tr>
+        <td>{{ r.rank }}
+          {% if r.tie_group %}<span class="tie" title="statistically tied — resolve by judgment">⟨T{{ r.tie_group }}⟩</span>{% endif %}</td>
+        <td>{{ r.f['flag'] }} <strong>{{ r.f['name'] }}</strong>
+          <span class="meta">{{ r.f['place'] }} · {{ r.f['dates'] }} · ~{{ r.f['cost_chf'] }} CHF</span>
+          {% if r.f['hard_to_get_in'] %}<span class="badge skipped">hard to get in</span>{% endif %}</td>
+        <td><strong>{{ '%.3f' | format(r.res.adjusted) }}</strong></td>
+        <td>{{ r.firsts }}</td>
+        <td>{{ r.lasts }}</td>
+        <td>{{ '%.3f' | format(r.res.raw) if r.res.raw is not none else '—' }}</td>
+        <td>{{ r.res.coverage }}</td>
+        <td>{{ r.spark | safe }}</td>
+        <td>
+          <form method="post" action="{{ url_for('admin_festival_note', fid=r.f['id']) }}" class="noteform">
+            <input name="body" value="{{ r.note }}" placeholder="e.g. applied 1 Dec">
+          </form>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section class="card">
+  <h2>Head-to-head</h2>
+  <p class="hint">Each cell shows how many voters put the <strong>row</strong> festival
+  above the <strong>column</strong> festival, against how many did the opposite. Voters
+  who left either one unranked don't count. This is the plan-B question: if the
+  row festival falls through, would people prefer the column one?
+  {% if condorcet %}<br>🏆 <strong>{{ condorcet['name'] }}</strong> beats every other
+  option head-to-head.{% elif n_voters %}<br>No option beats all the others head-to-head.{% endif %}</p>
+  <div class="table-scroll">
+  <table class="results matrix">
+    <thead><tr><th></th>
+      {% for row in matrix %}<th title="{{ row.f['name'] }}">{{ row.f['flag'] }}</th>{% endfor %}
+    </tr></thead>
+    <tbody>
+    {% for row in matrix %}
+      <tr><th class="rowhead">{{ row.f['flag'] }} {{ row.f['name'] }}</th>
+      {% for c in row.cells %}
+        {% if c is none %}<td class="self">—</td>
+        {% else %}<td class="{{ 'win' if c.w > c.l else ('loss' if c.w < c.l else '') }}">{{ c.w }}–{{ c.l }}</td>{% endif %}
+      {% endfor %}
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<script>
+document.querySelectorAll(".noteform input[name=body]").forEach(inp => {
+  inp.addEventListener("change", () => inp.form.submit());
+});
+</script>
+{% endblock %}

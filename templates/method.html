@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}How the vote works — Iris Trips{% endblock %}
+{% block content %}
+<section class="card intro">
+  <h1>How the festival ranking works</h1>
+  <p>This page explains how individual rankings become one ranking for the choir. It
+  uses the same method as our repertoire vote, applied to just 5 options. You don't need
+  any of this to vote. It's here for anyone curious, and for transparency.</p>
+
+  <h2>1. What your ballot says</h2>
+  <p>Your ballot is the festivals you placed, in order (1 = top choice). Please rank all
+  five. Your #2–#5 matter because they become our plans B to E if a festival doesn't
+  accept us. A festival you leave <strong>unranked</strong> counts as “no opinion”: it gets
+  no score from your ballot, positive or negative.</p>
+
+  <h2>2. How a ballot becomes numbers</h2>
+  <p>Each festival you placed gets a score between 0 and 1, based on its position and on
+  how many festivals you placed (<em>n</em>):</p>
+  <p class="formula">score = 1 − (position − ½) / n</p>
+  <p>With all 5 ranked, that is <strong>0.9, 0.7, 0.5, 0.3, 0.1</strong> for places 1–5:
+  evenly spaced, so moving a festival up one place always counts the same. The colors on
+  your ballot show this live: blue for your upper half, red for your lower half.</p>
+
+  <h2>3. How ballots are combined</h2>
+  <p>A festival's <strong>raw score</strong> is the average of its scores over the ballots
+  that placed it. This is a Borda count, rescaled to 0–1. If everyone ranks everything, a
+  higher score simply means a better average position.</p>
+  <p>If a festival was left unranked by many people, it would rest on fewer opinions. To
+  correct for that, the ordering uses an <strong>adjusted score</strong>: the raw average
+  blended with 3 neutral phantom ballots at 0.5. When nearly everyone ranks all five, this
+  changes almost nothing.</p>
+  <p>Two cross-checks appear alongside:</p>
+  <ul>
+    <li><strong>#1 votes</strong>: how many people picked the festival as their top
+        choice. Averages favor options everyone finds fine. This column shows the options
+        a group is excited about.</li>
+    <li><strong>Head-to-head</strong>: for every pair of festivals, how many voters
+        preferred each one. This answers the plan-B question directly: “if A falls
+        through, do people prefer B or C?” A festival that beats all others
+        head-to-head is called the <em>Condorcet winner</em>.</li>
+  </ul>
+  <p>When two scores are closer than one voter swapping two adjacent festivals could
+  change them, they're flagged as <strong>statistically tied</strong>. The organizers then
+  decide between them, using the head-to-head count among other things.</p>
+
+  <h2>4. From ranking to trip</h2>
+  <p>The final ranking is the order we apply in. Whether a festival works out also depends
+  on things a vote can't settle: whether the festival selects us, registration deadlines,
+  and the budget. Iris currently expects to cover about {{ iris_chf }} CHF per person.</p>
+
+  <h2>5. Fairness details</h2>
+  <ul>
+    <li>Unranked festivals are listed in a <strong>random order unique to you</strong>, so
+        no festival benefits from always appearing first.</li>
+    <li>Your ballot saves on every change and is counted exactly as last saved when
+        voting closes.</li>
+    <li><strong>Visibility:</strong> the organizing team can see individual ballots (by
+        name) during voting. After voting closes, the aggregate results and individual
+        rankings are shared with all members.</li>
+  </ul>
+
+  {% if not me %}
+  <p><a href="{{ url_for('landing') }}">← Back to the sign-in page</a></p>
+  {% else %}
+  <p><a href="{{ url_for('vote') }}">← Back to voting</a></p>
+  {% endif %}
+</section>
+{% endblock %}

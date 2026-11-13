@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Users — Iris Trips{% endblock %}
+{% block content %}
+<section class="card">
+  <h1>Users</h1>
+  <div class="table-scroll">
+  <table class="results">
+    <thead><tr><th>Name</th><th>Role</th><th>Ranked</th><th>Actions</th></tr></thead>
+    <tbody>
+    {% for u in users %}
+    <tr>
+      <td>{{ u['username'] }}</td>
+      <td>{{ 'admin' if u['is_admin'] else 'voter' }}</td>
+      <td>{{ u['ranked_ct'] or 0 }} / {{ n_options }}</td>
+      <td class="actions">
+        <form method="post" action="{{ url_for('admin_reset_pin', uid=u['id']) }}" class="inline">
+          <input name="pin" placeholder="new PIN" minlength="4" required class="w-input">
+          <button>Reset PIN</button>
+        </form>
+        {% if not u['is_admin'] %}
+        <form method="post" action="{{ url_for('admin_promote', uid=u['id']) }}" class="inline"
+              data-confirm="Make {{ u['username'] }} an admin?">
+          <button>Make admin</button>
+        </form>
+        {% endif %}
+        <form method="post" action="{{ url_for('admin_delete_ballot', uid=u['id']) }}" class="inline"
+              data-confirm="Permanently delete {{ u['username'] }}'s ballot? This removes it from all tabulation and exports.">
+          <button class="danger">Delete ballot</button>
+        </form>
+        {% if u['id'] != me['id'] %}
+        <form method="post" action="{{ url_for('admin_delete_account', uid=u['id']) }}" class="inline"
+              data-confirm="Permanently delete the account {{ u['username'] }} AND its ballot?">
+          <button class="danger">Delete account</button>
+        </form>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</section>
+<script>
+// Confirm text lives in a data attribute so user names never touch JS source.
+document.querySelectorAll("form[data-confirm]").forEach(f => {
+  f.addEventListener("submit", e => { if (!confirm(f.dataset.confirm)) e.preventDefault(); });
+});
+</script>
+{% endblock %}
