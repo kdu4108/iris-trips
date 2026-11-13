@@ -100,3 +100,63 @@ def test_full_flow():
     conn.close()
     admin.post(f"/admin/users/{tom}/delete_ballot")
     assert appmod.results_context(db.connect())["n_voters"] == 1
+
+
+def test_cant_go():
+    ids = sorted(fest_ids().values())
+    a, b, c, d, e = ids
+    admin = client()
+    appmod.create_admin("kevin", "1234")
+    login(admin, "kevin", "1234")
+    admin.post("/admin/voting/open", data={"until": "2099-11-25T23:59"})
+
+    v = client()
+    login(v, "Lena", "4321")
+    v.post("/api/rank", json={"festival_id": a, "position": 1})
+    v.post("/api/rank", json={"festival_id": b, "position": 2})
+    # Marking a ranked festival as can't-go takes it out of the ranking.
+    st = v.post("/api/cant_go", json={"festival_id": b, "cant_go": True}).get_json()
+    assert st == {"groups": [[a]], "cant_go": [b]}
+    st = v.post("/api/cant_go", json={"festival_id": c, "cant_go": True}).get_json()
+    assert st["cant_go"] == [b, c]
+    # Ranking a can't-go festival clears the mark.
+    st = v.post("/api/rank", json={"festival_id": c, "position": 2}).get_json()
+    assert st == {"groups": [[a], [c]], "cant_go": [b]}
+    # Undo returns it to the pool (neither ranked nor can't-go).
+    st = v.post("/api/cant_go", json={"festival_id": b, "cant_go": False}).get_json()
+    assert st == {"groups": [[a], [c]], "cant_go": []}
+    v.post("/api/cant_go", json={"festival_id": d, "cant_go": True})
+    v.post("/api/cant_go", json={"festival_id": e, "cant_go": True})
+
+    # Tabulated ballot: ranking, then can't-go as one bottom tie group.
+    conn = db.connect()
+    uid = conn.execute("SELECT id FROM users WHERE username = 'Lena'").fetchone()["id"]
+    assert appmod.full_groups(conn, uid) == [[a], [c], [d, e]]
+    lena = next(bb for bb in appmod.load_ballots(conn) if bb.voter == "Lena")
+    from tabulate import ballot_scores
+    sc = ballot_scores(lena)
+    # n = 4 (2 ranked + 2 can't go; one festival untouched)
+    assert round(sc[a], 3) == 0.875 and round(sc[c], 3) == 0.625
+    assert sc[d] == 0.0 and sc[e] == 0.0
+    ctx = appmod.results_context(conn)
+    row = {r["f"]["id"]: r for r in ctx["rows"]}
+    assert row[d]["cant_go"] >= 1 and row[e]["cant_go"] >= 1
+    assert "Lena,{},cant_go".format(row[d]["f"]["name"]) in \
+        admin.get("/admin/export/ballots.csv").data.decode()
+    # A voter with only can't-go marks contributes no #1 vote.
+    v2 = client()
+    login(v2, "Max", "4321")
+    before = sum(r["firsts"] for r in ctx["rows"])
+    v2.post("/api/cant_go", json={"festival_id": a, "cant_go": True})
+    after = sum(r["firsts"] for r in appmod.results_context(conn)["rows"])
+    assert after == before
+    conn.close()
+    assert "Can&#39;t go" in admin.get("/admin").data.decode() or "Can't go" in admin.get("/admin").data.decode()
+
+
+def test_headshots_include_avif_and_dedupe():
+    files = client().get("/api/headshots").get_json()
+    stems = [os.path.splitext(f)[0].lower() for f in files]
+    assert len(stems) == len(set(stems))          # one photo per person
+    for name in ("hannah", "justina"):
+        assert name in stems

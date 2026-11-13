@@ -5,13 +5,13 @@
   <h1>Users</h1>
   <div class="table-scroll">
   <table class="results">
-    <thead><tr><th>Name</th><th>Role</th><th>Ranked</th><th>Actions</th></tr></thead>
+    <thead><tr><th>Name</th><th>Role</th><th>Ranked + can't go</th><th>Actions</th></tr></thead>
     <tbody>
     {% for u in users %}
     <tr>
       <td>{{ u['username'] }}</td>
       <td>{{ 'admin' if u['is_admin'] else 'voter' }}</td>
-      <td>{{ u['ranked_ct'] or 0 }} / {{ n_options }}</td>
+      <td>{{ (u['ranked_ct'] or 0) + (u['cant_ct'] or 0) }} / {{ n_options }}{% if u['cant_ct'] %} <span class="meta">({{ u['cant_ct'] }} can't go)</span>{% endif %}</td>
       <td class="actions">
         <form method="post" action="{{ url_for('admin_reset_pin', uid=u['id']) }}" class="inline">
           <input name="pin" placeholder="new PIN" minlength="4" required class="w-input">

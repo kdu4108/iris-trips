@@ -24,7 +24,8 @@ CREATE TABLE IF NOT EXISTS festivals (
     dates TEXT NOT NULL,
     cost_chf INTEGER NOT NULL,
     blurb TEXT NOT NULL DEFAULT '',
-    hard_to_get_in INTEGER NOT NULL DEFAULT 0
+    hard_to_get_in INTEGER NOT NULL DEFAULT 0,
+    url TEXT NOT NULL DEFAULT ''
 );
 -- One row per (user, festival) the voter has placed. position is the
 -- 1-based rank group (dense); the UI only makes strict rankings, but the
@@ -34,6 +35,13 @@ CREATE TABLE IF NOT EXISTS ballot_items (
     festival_id INTEGER NOT NULL REFERENCES festivals(id) ON DELETE CASCADE,
     position INTEGER NOT NULL,
     updated_at TEXT NOT NULL,
+    PRIMARY KEY (user_id, festival_id)
+);
+-- Festivals a voter absolutely can't attend. Mutually exclusive with
+-- ballot_items; tabulated as a tie group below everything they ranked.
+CREATE TABLE IF NOT EXISTS cant_go (
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    festival_id INTEGER NOT NULL REFERENCES festivals(id) ON DELETE CASCADE,
     PRIMARY KEY (user_id, festival_id)
 );
 -- Admin notes per festival (e.g. registration status).
@@ -62,6 +70,9 @@ def connect() -> sqlite3.Connection:
 
 def init_db(conn: sqlite3.Connection) -> None:
     conn.executescript(SCHEMA)
+    fcols = {r["name"] for r in conn.execute("PRAGMA table_info(festivals)")}
+    if "url" not in fcols:
+        conn.execute("ALTER TABLE festivals ADD COLUMN url TEXT NOT NULL DEFAULT ''")
     defaults = {
         "voting_open": "0",
         "close_at": "",          # ISO timestamp; empty = no timer
@@ -78,6 +89,9 @@ def init_db(conn: sqlite3.Connection) -> None:
                 "hard_to_get_in) VALUES (?,?,?,?,?,?,?)",
                 (f["name"], f["place"], f["flag"], f["dates"], f["cost_chf"],
                  f["blurb"], int(f["hard_to_get_in"])))
+    for f in FESTIVALS:     # websites are safe to (re)sync on a live database
+        conn.execute("UPDATE festivals SET url = ? WHERE name = ?",
+                     (f.get("url", ""), f["name"]))
     conn.commit()
 
 

@@ -2,7 +2,8 @@
 
 Seeded into an empty database on first boot (db.init_db). Edit here *before*
 the first run; afterwards the database is the source of truth (delete iris.db
-to reseed — this wipes all ballots).
+to reseed — this wipes all ballots). Exception: website URLs are re-synced
+by name on every boot, so they can be fixed without a reset.
 """
 
 CODA_URL = ("https://docs.superhuman.com/d/Iris-Brain_dLU6W6zxHXd/"
@@ -14,6 +15,7 @@ IRIS_CONTRIBUTION_CHF = 150
 FESTIVALS = [
     {
         "name": "Chorfestival Baden",
+        "url": "https://chorfestival-baden.de/festival-2027/",
         "place": "Baden, Germany", "flag": "🇩🇪",
         "dates": "26–31 May 2027", "cost_chf": 150,
         "blurb": "International festival, very selective.",
@@ -21,6 +23,7 @@ FESTIVALS = [
     },
     {
         "name": "International Cappadocia Choir Festival",
+        "url": "https://cappadociachoirfest.com/",
         "place": "Cappadocia, Turkey", "flag": "🇹🇷",
         "dates": "5–9 July 2027", "cost_chf": 500,
         "blurb": "International festival (size not specified), focused on workshops "
@@ -29,6 +32,7 @@ FESTIVALS = [
     },
     {
         "name": "International Choral Festival of Preveza",
+        "url": "https://www.armoniachoir.org/",
         "place": "Preveza, Greece", "flag": "🇬🇷",
         "dates": "8–11 July 2027", "cost_chf": 500,
         "blurb": "Big international festival (about 400 choirs), with the "
@@ -37,6 +41,7 @@ FESTIVALS = [
     },
     {
         "name": "CantaRode International Choral Festival",
+        "url": "https://www.cantarode.nl/en/",
         "place": "Kerkrade, Netherlands", "flag": "🇳🇱",
         "dates": "6–10 May 2027", "cost_chf": 450,
         "blurb": "Festival for small choirs (12–40 voices, 10–14 choirs).",
@@ -44,6 +49,7 @@ FESTIVALS = [
     },
     {
         "name": "Ascona Choral Academy",
+        "url": "https://classicascona.ch/en/ascona-academy/ascona-choral-academy/",
         "place": "Ascona, Switzerland", "flag": "🇨🇭",
         "dates": "3–9 October 2027", "cost_chf": 300,
         "blurb": "Workshops with the Tenebrae Choir's conductor and singers.",

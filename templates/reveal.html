@@ -21,7 +21,7 @@ the reveal.</div>
   <h2>The full picture</h2>
   <div class="table-scroll">
   <table class="results">
-    <thead><tr><th>#</th><th>Festival</th><th>Score</th><th>#1 votes</th><th>Distribution</th></tr></thead>
+    <thead><tr><th>#</th><th>Festival</th><th>Score</th><th>#1 votes</th><th>Can't go</th><th>Distribution</th></tr></thead>
     <tbody>
     {% for r in rows %}
       <tr><td>{{ r.rank }}{% if r.tie_group %}<span class="tie" title="statistically tied">⟨tie⟩</span>{% endif %}</td>
@@ -29,6 +29,7 @@ the reveal.</div>
           <span class="meta">{{ r.f['place'] }} · {{ r.f['dates'] }}</span></td>
         <td>{{ '%.3f' | format(r.res.adjusted) }}</td>
         <td>{{ r.firsts }}</td>
+        <td>{{ r.cant_go }}</td>
         <td>{{ r.spark | safe }}</td></tr>
     {% endfor %}
     </tbody>
@@ -72,7 +73,8 @@ the reveal.</div>
       <strong>{{ b.voter }}</strong>
       {% set m = twins.get(b.voter) %}
       {% if m and m.twin.rho > 0 %}<div class="meta">👯 taste twin: {{ m.twin.name }}</div>{% endif %}
-      <ol>{% for f in b.entries %}<li>{{ f['flag'] }} {{ f['name'] }}</li>{% endfor %}</ol>
+      {% if b.entries %}<ol>{% for f in b.entries %}<li>{{ f['flag'] }} {{ f['name'] }}</li>{% endfor %}</ol>{% endif %}
+      {% if b.cant_go %}<div class="meta cantgo-line">🚫 can't go: {% for f in b.cant_go %}{{ f['flag'] }} {{ f['name'] }}{{ ', ' if not loop.last }}{% endfor %}</div>{% endif %}
     </div>
   {% endfor %}
   </div>
@@ -101,7 +103,8 @@ const COUNTDOWN = {{ countdown_json | safe }};   // last place first
     const meta = document.createElement("div");
     meta.className = "meta";
     meta.textContent = `${c.place} · ${c.dates} · score ${c.adjusted.toFixed(3)} · `
-      + `${c.firsts} first-place vote${c.firsts === 1 ? "" : "s"}`;
+      + `${c.firsts} first-place vote${c.firsts === 1 ? "" : "s"}`
+      + (c.cant_go ? ` · ${c.cant_go} can't go` : "");
     div.append(rank, big, meta);
     slots.prepend(div);              // best ends up on top
   }

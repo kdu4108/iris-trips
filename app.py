@@ -141,11 +141,32 @@ def user_groups(conn, user_id):
     return groups
 
 
+def user_cant_go(conn, user_id):
+    return [r["festival_id"] for r in conn.execute(
+        "SELECT festival_id FROM cant_go WHERE user_id = ? ORDER BY festival_id",
+        (user_id,))]
+
+
+def full_groups(conn, user_id):
+    """The tabulated ballot: the voter's ranking, then all their can't-go
+    festivals as one group at the bottom. load_ballots() also marks them as
+    zero-score, so each can't-go scores 0 however many are marked."""
+    groups = user_groups(conn, user_id)
+    cg = user_cant_go(conn, user_id)
+    return groups + [cg] if cg else groups
+
+
 def load_ballots(conn):
     """All voters' ballots as tabulate.Ballot (voter key = username)."""
     users = conn.execute("SELECT id, username FROM users").fetchall()
-    return [tab.Ballot(voter=u["username"], groups=user_groups(conn, u["id"]))
+    return [tab.Ballot(voter=u["username"], groups=full_groups(conn, u["id"]),
+                       zero=frozenset(user_cant_go(conn, u["id"])))
             for u in users]
+
+
+def cant_go_counts(conn):
+    return {r["festival_id"]: r["n"] for r in conn.execute(
+        "SELECT festival_id, COUNT(*) n FROM cant_go GROUP BY festival_id")}
 
 
 def all_festivals(conn):
@@ -155,7 +176,7 @@ def all_festivals(conn):
 def festival_view(row):
     """Festival fields the UI needs, JSON-safe."""
     return {k: row[k] for k in ("id", "name", "place", "flag", "dates", "cost_chf",
-                                "blurb", "hard_to_get_in")}
+                                "blurb", "hard_to_get_in", "url")}
 
 
 # ---------- auth (when2meet-style self-service) ----------
@@ -213,7 +234,8 @@ def display_order(conn, user_id):
 
 
 def ballot_state(conn, user_id):
-    return {"groups": user_groups(conn, user_id)}
+    return {"groups": user_groups(conn, user_id),
+            "cant_go": user_cant_go(conn, user_id)}
 
 
 @app.route("/vote")
@@ -258,6 +280,8 @@ def _place(conn, user_id, festival_id, position):
     if conn.execute("SELECT 1 FROM festivals WHERE id = ?", (festival_id,)).fetchone() is None:
         abort(404)
     _remove(conn, user_id, festival_id)
+    conn.execute("DELETE FROM cant_go WHERE user_id = ? AND festival_id = ?",
+                 (user_id, festival_id))
     ngroups = len(user_groups(conn, user_id))
     position = max(1, min(int(position), ngroups + 1))
     conn.execute("UPDATE ballot_items SET position = position + 1 "
@@ -288,13 +312,45 @@ def api_unrank():
     return jsonify(ballot_state(conn, g.user["id"]))
 
 
+@app.route("/api/cant_go", methods=["POST"])
+@login_required
+def api_cant_go():
+    """Mark (or unmark) a festival as one the voter absolutely can't attend.
+    Marking takes it out of their ranking; unmarking returns it to the pool."""
+    conn = get_conn()
+    _require_open(conn)
+    data = request.get_json(force=True)
+    fid = int(data["festival_id"])
+    if conn.execute("SELECT 1 FROM festivals WHERE id = ?", (fid,)).fetchone() is None:
+        abort(404)
+    if data.get("cant_go"):
+        _remove(conn, g.user["id"], fid)
+        conn.execute("INSERT OR IGNORE INTO cant_go (user_id, festival_id) VALUES (?,?)",
+                     (g.user["id"], fid))
+    else:
+        conn.execute("DELETE FROM cant_go WHERE user_id = ? AND festival_id = ?",
+                     (g.user["id"], fid))
+    conn.commit()
+    return jsonify(ballot_state(conn, g.user["id"]))
+
+
 @app.route("/api/headshots")
 def api_headshots():
     # For the 🐣 easter egg: list of headshot filenames.
+    # One photo per person: if someone has several (e.g. anna.jpeg and a
+    # newer anna.avif), the most recently added file wins.
     d = os.path.join(app.static_folder, "headshots")
-    files = sorted(f for f in os.listdir(d)
-                   if f.lower().endswith((".jpeg", ".jpg", ".png"))) if os.path.isdir(d) else []
-    return jsonify(files)
+    exts = (".jpeg", ".jpg", ".png", ".avif", ".webp")
+    newest = {}
+    if os.path.isdir(d):
+        for f in os.listdir(d):
+            stem, ext = os.path.splitext(f)
+            if ext.lower() not in exts:
+                continue
+            mtime = os.stat(os.path.join(d, f)).st_mtime
+            if stem.lower() not in newest or mtime > newest[stem.lower()][0]:
+                newest[stem.lower()] = (mtime, f)
+    return jsonify(sorted(f for _, f in newest.values()))
 
 
 # ---------- results (shared by admin view, reveal, exports) ----------
@@ -333,16 +389,19 @@ def results_context(conn):
 
     # With ~5 options, "#1 votes" and "last-place votes" say more than a
     # top-5 count would (everything is in everyone's top 5).
+    # Both count the voter's own ranking only: can't-go festivals are
+    # neither a first choice nor a "last of the ones I'd go to".
     firsts = {fid: 0 for fid in ids}
     lasts = {fid: 0 for fid in ids}
-    for b in ballots:
-        if b.n >= 2:
-            for fid in b.groups[0]:
+    for u in conn.execute("SELECT id FROM users"):
+        ranked = user_groups(conn, u["id"])
+        if ranked:
+            for fid in ranked[0]:
                 firsts[fid] += 1
-            for fid in b.groups[-1]:
+        if len(ranked) >= 2:
+            for fid in ranked[-1]:
                 lasts[fid] += 1
-        elif b.n == 1:
-            firsts[b.groups[0][0]] += 1
+    cant = cant_go_counts(conn)
 
     wins = tab.pairwise(ballots, ids)
     fest_by_id = {f["id"]: f for f in fests}
@@ -354,7 +413,7 @@ def results_context(conn):
         fid = res.song_id    # tabulate's generic "song" id = festival id
         rows.append({
             "rank": rank, "f": fest_by_id[fid], "res": res,
-            "firsts": firsts[fid], "lasts": lasts[fid],
+            "firsts": firsts[fid], "lasts": lasts[fid], "cant_go": cant.get(fid, 0),
             "tie_group": tie_of.get(fid),
             "spark": sparkline_svg(res.scores),
             "note": notes.get(fid, ""),
@@ -412,9 +471,10 @@ def admin_festival_note(fid):
 def admin_users():
     conn = get_conn()
     users = conn.execute(
-        """SELECT u.*, COUNT(b.festival_id) AS ranked_ct
-           FROM users u LEFT JOIN ballot_items b ON b.user_id = u.id
-           GROUP BY u.id ORDER BY u.username COLLATE NOCASE""").fetchall()
+        """SELECT u.*,
+             (SELECT COUNT(*) FROM ballot_items b WHERE b.user_id = u.id) AS ranked_ct,
+             (SELECT COUNT(*) FROM cant_go c WHERE c.user_id = u.id) AS cant_ct
+           FROM users u ORDER BY u.username COLLATE NOCASE""").fetchall()
     return render_template("admin_users.html", users=users,
                            n_options=len(all_festivals(conn)))
 
@@ -445,6 +505,7 @@ def admin_promote(uid):
 def admin_delete_ballot(uid):
     conn = get_conn()
     conn.execute("DELETE FROM ballot_items WHERE user_id = ?", (uid,))
+    conn.execute("DELETE FROM cant_go WHERE user_id = ?", (uid,))
     conn.commit()
     return redirect(url_for("admin_users"))
 
@@ -532,13 +593,16 @@ def reveal():
     ctx = results_context(conn)
     fest_by_id = ctx["fest_by_id"]
     ballots_view = []
-    for b in sorted(ctx["ballots"], key=lambda b: b.voter.lower()):
-        ballots_view.append({"voter": b.voter,
-                             "entries": [fest_by_id[fid] for grp in b.groups for fid in grp]})
+    for u in conn.execute("SELECT id, username FROM users ORDER BY username COLLATE NOCASE"):
+        ranked = [fest_by_id[fid] for grp in user_groups(conn, u["id"]) for fid in grp]
+        cant = [fest_by_id[fid] for fid in user_cant_go(conn, u["id"])]
+        if ranked or cant:
+            ballots_view.append({"voter": u["username"], "entries": ranked, "cant_go": cant})
     countdown = [{
         "rank": r["rank"], "name": r["f"]["name"], "place": r["f"]["place"],
         "flag": r["f"]["flag"], "dates": r["f"]["dates"],
         "adjusted": round(r["res"].adjusted, 3), "firsts": r["firsts"],
+        "cant_go": r["cant_go"],
         "tied_with_prev": r["tie_group"] is not None and any(
             o["rank"] == r["rank"] + 1 and o["tie_group"] == r["tie_group"]
             for o in ctx["rows"]),
@@ -567,10 +631,13 @@ def export_ballots():
     conn = get_conn()
     names = {f["id"]: f["name"] for f in all_festivals(conn)}
     rows = []
-    for b in load_ballots(conn):
-        slots = tab.ballot_slots(b)
+    for u in conn.execute("SELECT id, username FROM users"):
+        slots = tab.ballot_slots(tab.Ballot(u["username"], user_groups(conn, u["id"])))
+        cant = set(user_cant_go(conn, u["id"]))
         for fid, name in names.items():
-            rows.append([b.voter, name, f"{slots[fid]:g}" if fid in slots else "unranked"])
+            pos = (f"{slots[fid]:g}" if fid in slots
+                   else "cant_go" if fid in cant else "unranked")
+            rows.append([u["username"], name, pos])
     return _csv_response("ballots.csv", ["voter", "festival", "position"], rows)
 
 
@@ -580,12 +647,12 @@ def export_results():
     ctx = results_context(get_conn())
     rows = [[r["rank"], r["f"]["name"], r["f"]["place"],
              "" if r["res"].raw is None else round(r["res"].raw, 4),
-             round(r["res"].adjusted, 4), r["res"].coverage, r["firsts"], r["lasts"]]
+             round(r["res"].adjusted, 4), r["res"].coverage, r["firsts"], r["lasts"], r["cant_go"]]
             for r in ctx["rows"]]
     return _csv_response(
         "results.csv",
         ["rank", "festival", "place", "raw_score", "adjusted_score", "coverage",
-         "first_place_votes", "last_place_votes"], rows)
+         "first_place_votes", "last_place_votes", "cant_go"], rows)
 
 
 # ---------- CLI ----------

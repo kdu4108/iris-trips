@@ -1,32 +1,39 @@
 {% extends "base.html" %}
 {% block title %}Vote — Iris Trips{% endblock %}
 {% block content %}
+<!-- Same structure as iris-ranking: ranking first in the DOM (top on phones),
+     festival list on the left / ranking on the right from 980px up. -->
+<div class="vote-layout" id="vote-layout">
+<div class="col-ballot">
 <section class="card sec-ranking">
-  <h2>⭐ Your ranking <span class="hint-inline">(1 = top choice)</span>
+  <h2>⭐ Your ranking
     <span id="save-status" class="save-status"
           title="Your ballot is saved on every change — you can close this page and return any time">💾 auto-saves</span></h2>
-  <p class="hint">Put the festivals in the order you'd like us to try them: your #1 is plan A,
-  your #2 is plan B, and so on. Use ▲▼ to reorder<span class="desktop-only">, or drag
-  the cards</span>.
-  <a href="{{ coda_url }}" target="_blank" rel="noopener">More info on Coda</a> ·
-  <a href="{{ url_for('method') }}">How is this counted?</a></p>
-  <p id="band-legend" class="band-legend" style="display:none" aria-hidden="true">
-    top choice <span class="legend-grad"></span> last choice
-  </p>
+  <p class="hint">#1 = plan A, #2 = plan B, and so on.
+  <a href="{{ coda_url }}" target="_blank" rel="noopener">Festival details</a> ·
+  <a href="{{ url_for('method') }}">How it's counted</a></p>
   <ol id="ranked-list" class="ranked fest-list"></ol>
-  <p id="ranked-empty" class="hint">Nothing ranked yet. Tap <strong>Rank it</strong> on
-  your favorite festival below to start.</p>
-  <p id="all-done" class="hint all-ranked" style="display:none">✅ All 5 ranked, thanks!
-  You can keep reordering until voting closes.</p>
+  <p id="ranked-empty" class="hint">Start with your favorite
+  <span class="mobile-only">below</span><span class="desktop-only">from the list on
+  the left: tap <strong>Rank</strong> or drag it here</span>.</p>
+  <p id="all-done" class="hint all-ranked" style="display:none">✅ All done! You can
+  still change it until voting closes.</p>
 </section>
+</div>
 
+<div class="col-pool">
 <section class="card sec-pool" id="pool-section">
   <h2>🗺️ Festivals to rank <span id="pool-count" class="hint-inline"></span></h2>
-  <p class="hint">Each festival you tap goes to the <strong>bottom</strong> of your
-  ranking, so tapping them in order of preference is all it takes.
-  Ranking all of them gives your preferences their full weight.</p>
   <div id="pool"></div>
 </section>
+
+<section class="card sec-cantgo" id="cantgo-section" style="display:none">
+  <h2>🚫 Can't go</h2>
+  <p class="hint">Each one scores 0, below everything you ranked.</p>
+  <div id="cantgo" class="cantgo-list"></div>
+</section>
+</div>
+</div>
 
 <script>
 const FESTIVALS = {{ festivals_json | safe }};

@@ -185,3 +185,22 @@ def test_pairwise_and_condorcet():
     assert condorcet_winner(w) is None         # 1 and 2 tie head-to-head
     ballots.append(Ballot("e", singles([1, 2, 3])))
     assert condorcet_winner(pairwise(ballots, [1, 2, 3])) == 1
+
+
+def test_zero_scored_cant_go():
+    # Ranked festivals keep their spacing as if can't-go filled the bottom
+    # slots; every can't-go scores exactly 0, however many there are.
+    b = Ballot("v", singles([1, 2, 3]) + [[4, 5]], zero=frozenset({4, 5}))
+    s = ballot_scores(b)
+    assert [round(s[i], 3) for i in (1, 2, 3)] == [0.9, 0.7, 0.5]
+    assert s[4] == 0.0 and s[5] == 0.0
+    b = Ballot("w", [[1], [2, 3, 4, 5]], zero=frozenset({2, 3, 4, 5}))
+    assert round(ballot_scores(b)[1], 3) == 0.9
+    assert all(ballot_scores(b)[i] == 0.0 for i in (2, 3, 4, 5))
+    # Only can't-go marks: those festivals still get 0 (not a neutral 0.5).
+    b = Ballot("x", [[1, 2]], zero=frozenset({1, 2}))
+    res = tabulate([b], [1, 2, 3], w=0)
+    assert res[1].raw == 0.0 and res[2].raw == 0.0 and res[3].coverage == 0
+    # Still below every ranked option head-to-head, no wins among themselves.
+    w = pairwise([Ballot("v", singles([1]) + [[2, 3]], zero=frozenset({2, 3}))], [1, 2, 3])
+    assert w[1][2] == 1 and w[2][3] == 0 and w[3][2] == 0

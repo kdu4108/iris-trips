@@ -3,7 +3,7 @@
    Auto-saves every change; shade ∝ positional score, as in iris-ranking. */
 "use strict";
 
-let state = INITIAL_STATE;             // {groups: [[festivalId], ...]}
+let state = INITIAL_STATE;             // {groups: [[festivalId], ...], cant_go: [ids]}
 const fests = {};
 FESTIVALS.forEach(f => { fests[f.id] = f; });
 const N_TOTAL = FESTIVALS.length;
@@ -67,6 +67,7 @@ function rank(fid, position) {
   return post("/api/rank", {festival_id: fid, position});
 }
 function unrank(fid) { return post("/api/unrank", {festival_id: fid}); }
+function setCantGo(fid, on) { return post("/api/cant_go", {festival_id: fid, cant_go: on}); }
 
 /* ---------- rendering ---------- */
 
@@ -77,23 +78,48 @@ function el(tag, cls, text) {
   return e;
 }
 
-function festBody(f) {
+function festBody(f, compact) {
+  // Key facts (name, dates, place, price) up front; the description and the
+  // "hard to get in" caveat sit in a quieter line below (full cards only).
   const body = el("div", "fest-body");
   const head = el("div", "fest-head");
-  head.append(el("span", "fest-flag", f.flag), el("span", "title", f.name));
+  let title;
+  if (f.url) {
+    title = el("a", "title fest-title-link", f.name);
+    title.href = f.url;
+    title.target = "_blank";
+    title.rel = "noopener";
+    title.title = "Open the festival website";
+    title.draggable = false;
+  } else {
+    title = el("span", "title", f.name);
+  }
+  head.append(el("span", "fest-flag", f.flag), title);
   body.append(head);
-  const meta = el("div", "meta");
-  meta.textContent = `${f.place} · ${f.dates}`;
-  body.append(meta);
-  const facts = el("div", "fest-facts");
-  const share = Math.max(0, f.cost_chf - IRIS_CHF);
-  const cost = el("span", "fact cost", `~${f.cost_chf} CHF p.p.`);
-  cost.title = `Estimated total per person. With Iris covering ~${IRIS_CHF} CHF, ` +
-               `your share would be about ${share} CHF (subject to change).`;
-  facts.append(cost);
-  if (f.hard_to_get_in) facts.append(el("span", "fact hard", "might be hard to get in"));
+
+  const facts = el("div", "fest-keyfacts");
+  const cost = el("span", "kf kf-cost", `~${f.cost_chf} CHF`);
+  cost.title = `Estimated total per person. Iris expects to cover ~${IRIS_CHF} CHF, ` +
+               `so your share would be about ${Math.max(0, f.cost_chf - IRIS_CHF)} CHF ` +
+               `(subject to change).`;
+  const place = el("a", "kf kf-place", f.place);
+  place.href = "https://www.google.com/maps/search/?api=1&query=" +
+               encodeURIComponent(f.place);
+  place.target = "_blank";
+  place.rel = "noopener";
+  place.title = "Show on Google Maps";
+  place.draggable = false;
+  facts.append(el("span", "kf kf-date", f.dates), place, cost);
   body.append(facts);
-  body.append(el("div", "fest-blurb", f.blurb));
+  if (compact) return body;
+
+  const note = el("div", "fest-note");
+  note.textContent = f.blurb;
+  if (f.hard_to_get_in) {
+    note.append(" ");
+    note.append(el("span", "fest-hard", "· might be hard to get in"));
+  }
+  body.append(note);
   return body;
 }
 
@@ -127,32 +153,56 @@ function render() {
       iconBtn("▼", `Move ${f.name} down`, () => rank(fid, i + 2), i === n - 1),
       iconBtn("✕", `Remove ${f.name} from your ranking`, () => unrank(fid)),
     );
-    li.append(pos, festBody(f), controls);
+    li.append(pos, festBody(f, true), controls);
     if (fid === justPlaced) li.classList.add("just-placed");
     rankedEl.append(li);
   });
   justPlaced = null;
 
+  const cantSet = new Set(state.cant_go || []);
   const rankedSet = new Set(ids);
-  const pool = FESTIVALS.filter(f => !rankedSet.has(f.id));
+  const pool = FESTIVALS.filter(f => !rankedSet.has(f.id) && !cantSet.has(f.id));
   poolEl.innerHTML = "";
   pool.forEach(f => {
     const card = el("div", "pool-card fest-card");
     card.dataset.fid = f.id;
     card.draggable = VOTING_OPEN;
     const actions = el("div", "pool-actions");
-    const btn = el("button", "primary", `Rank it as #${n + 1}`);
+    const btn = el("button", "primary", `Rank #${n + 1}`);
     btn.type = "button";
     btn.disabled = !VOTING_OPEN;
     btn.addEventListener("click", () => rank(f.id, n + 1));
-    actions.append(btn);
+    const no = el("button", "cantgo-btn", "🚫 Can't go");
+    no.type = "button";
+    no.disabled = !VOTING_OPEN;
+    no.title = "I absolutely can't attend this one";
+    no.addEventListener("click", () => setCantGo(f.id, true));
+    actions.append(btn, no);
     card.append(festBody(f), actions);
     poolEl.append(card);
   });
 
-  document.getElementById("ranked-empty").style.display = n ? "none" : "";
-  document.getElementById("band-legend").style.display = n > 1 ? "" : "none";
-  document.getElementById("all-done").style.display = n === N_TOTAL ? "" : "none";
+  const cantEl = document.getElementById("cantgo");
+  cantEl.innerHTML = "";
+  FESTIVALS.filter(f => cantSet.has(f.id)).forEach(f => {
+    const card = el("div", "pool-card fest-card");
+    const actions = el("div", "pool-actions");
+    const undo = el("button", "", "Undo");
+    undo.type = "button";
+    undo.disabled = !VOTING_OPEN;
+    undo.addEventListener("click", () => setCantGo(f.id, false));
+    actions.append(undo);
+    card.append(festBody(f, true), actions);
+    cantEl.append(card);
+  });
+  document.getElementById("cantgo-section").style.display = cantSet.size ? "" : "none";
+  // Nothing left in the left column: let the ranking take the full width.
+  document.getElementById("vote-layout").classList.toggle(
+    "pool-empty", !pool.length && !cantSet.size);
+
+  document.getElementById("ranked-empty").style.display = n || !pool.length ? "none" : "";
+  document.getElementById("all-done").style.display =
+    n + cantSet.size === N_TOTAL ? "" : "none";
   document.getElementById("pool-section").style.display = pool.length ? "" : "none";
   document.getElementById("pool-count").textContent =
     pool.length ? `(${pool.length} left)` : "";

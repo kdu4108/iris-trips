@@ -24,9 +24,15 @@ NEUTRAL_PRIOR = 0.5
 @dataclass
 class Ballot:
     """One voter's ballot: ordered rank groups. groups=[[5],[2,7],[9]] means
-    song 5 first, songs 2 and 7 tied for second/third, song 9 last."""
+    song 5 first, songs 2 and 7 tied for second/third, song 9 last.
+
+    zero: options that score exactly 0 regardless of position (Iris Trips'
+    "can't go"). They should also be placed as the last group, so they still
+    count toward n, sit below everything ranked in slots/pairwise, and keep
+    the ranked options' spacing the same as if they were ranked last."""
     voter: str
     groups: List[List[int]] = field(default_factory=list)
+    zero: frozenset = field(default_factory=frozenset)
 
     @property
     def n(self) -> int:
@@ -62,7 +68,8 @@ def ballot_scores(ballot: Ballot) -> Dict[int, float]:
     n = ballot.n
     if n == 0:
         return {}
-    return {sid: positional_score(p, n) for sid, p in ballot_slots(ballot).items()}
+    return {sid: 0.0 if sid in ballot.zero else positional_score(p, n)
+            for sid, p in ballot_slots(ballot).items()}
 
 
 def top_k_cutoff(n: int) -> int:
@@ -104,7 +111,7 @@ def tabulate(ballots: List[Ballot], song_ids: List[int], w: float = DEFAULT_W) -
         for sid, p in slots.items():
             if sid not in per_song_scores:
                 continue
-            per_song_scores[sid][b.voter] = positional_score(p, n)
+            per_song_scores[sid][b.voter] = 0.0 if sid in b.zero else positional_score(p, n)
             if p <= k:
                 top5_counts[sid] += 1
             if p > n - k:

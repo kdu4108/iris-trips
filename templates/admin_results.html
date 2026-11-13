@@ -21,13 +21,13 @@ Scores shift as ballots come in.</div>
     </span>
   </div>
   <p class="hint">{{ n_voters }} voter(s) have started, {{ n_complete }} ranked all
-  {{ n_options }}. Ties marked ⟨T·n⟩ are statistically indistinguishable, so settle them
+  {{ n_options }} (counting can't-go marks). Can't-go festivals sit in a tie at the bottom of that voter's ballot. Ties marked ⟨T·n⟩ are statistically indistinguishable, so settle them
   by judgment (or by the head-to-head table below).</p>
 
   <div class="table-scroll">
   <table class="results">
     <thead><tr>
-      <th>#</th><th>Festival</th><th>Adjusted</th><th>#1 votes</th><th>Last</th>
+      <th>#</th><th>Festival</th><th>Adjusted</th><th>#1 votes</th><th>Last</th><th title="voters who absolutely can't attend">Can't go</th>
       <th>Raw</th><th>Coverage</th><th>Distribution</th><th>Note</th>
     </tr></thead>
     <tbody>
@@ -36,11 +36,13 @@ Scores shift as ballots come in.</div>
         <td>{{ r.rank }}
           {% if r.tie_group %}<span class="tie" title="statistically tied — resolve by judgment">⟨T{{ r.tie_group }}⟩</span>{% endif %}</td>
         <td>{{ r.f['flag'] }} <strong>{{ r.f['name'] }}</strong>
+          {% if r.f['url'] %}<a href="{{ r.f['url'] }}" target="_blank" rel="noopener" title="Festival website">↗</a>{% endif %}
           <span class="meta">{{ r.f['place'] }} · {{ r.f['dates'] }} · ~{{ r.f['cost_chf'] }} CHF</span>
           {% if r.f['hard_to_get_in'] %}<span class="badge skipped">hard to get in</span>{% endif %}</td>
         <td><strong>{{ '%.3f' | format(r.res.adjusted) }}</strong></td>
         <td>{{ r.firsts }}</td>
         <td>{{ r.lasts }}</td>
+        <td class="{{ 'cantgo-hi' if r.cant_go }}">{{ r.cant_go }}</td>
         <td>{{ '%.3f' | format(r.res.raw) if r.res.raw is not none else '—' }}</td>
         <td>{{ r.res.coverage }}</td>
         <td>{{ r.spark | safe }}</td>

@@ -1,17 +1,31 @@
 /* Iris Trips — additions on top of iris-ranking's style.css. */
 
 main { max-width: 760px; }
+@media (min-width: 980px) {
+  /* voting page: list left, ranking right (drag left → right), as in iris-ranking */
+  main:has(.vote-layout) { max-width: 1180px; }
+  .vote-layout.pool-empty { grid-template-columns: minmax(0, 760px);
+    grid-template-areas: "ballot"; justify-content: center; }
+}
 
-/* festival cards (ranked rows + pool) */
-.fest-body { min-width: 0; display: flex; flex-direction: column; gap: 0.15rem; }
+/* festival cards (ranked rows + pool): key facts first, details quiet */
+.fest-body { min-width: 0; display: flex; flex-direction: column; gap: 0.2rem; }
 .fest-head { display: flex; align-items: baseline; gap: 0.4rem; }
+.fest-head .title { min-width: 0; }
 .fest-flag { font-size: 1.15rem; line-height: 1; }
-.fest-facts { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.15rem; }
-.fact { font-size: 0.75rem; font-weight: 600; border-radius: 999px;
-  padding: 0.08rem 0.55rem; white-space: nowrap; }
-.fact.cost { background: #eef4ea; color: #2f5a1e; border: 1px solid #cfe2c4; cursor: help; }
-.fact.hard { background: #fff1cc; color: #6b4a00; border: 1px solid #f1dc9c; }
-.fest-blurb { font-size: 0.85rem; color: #55534d; }
+a.fest-title-link { color: inherit; text-decoration: underline;
+  text-decoration-color: rgba(45, 42, 74, 0.3); text-underline-offset: 3px; }
+a.fest-title-link:hover { text-decoration-color: currentColor; }
+.fest-keyfacts { display: flex; flex-wrap: wrap; gap: 0.3rem; margin: 0.1rem 0; }
+.kf { white-space: nowrap; font-size: 0.82rem; font-weight: 600; border-radius: 999px;
+  padding: 0.1rem 0.6rem; border: 1px solid; }
+.kf-date { background: #eef0fb; color: #3a3570; border-color: #d3d6f2; }
+.kf-place { background: #fbf1e6; color: #7a4a14; border-color: #efd8bc;
+  text-decoration: none; }
+a.kf-place:hover { background: #f6e3cc; border-color: #7a4a14; }
+.kf-cost { background: #eef4ea; color: #2f5a1e; border-color: #cfe2c4; cursor: help; }
+.fest-note { font-size: 0.78rem; color: #8a877f; line-height: 1.35; }
+.fest-hard { font-style: italic; }
 .ranked-item.fest-item { padding: 0.65rem 0.5rem; margin-bottom: 0.35rem;
   border-bottom: none; }
 .ranked-item[draggable="true"] { cursor: grab; }
@@ -45,4 +59,32 @@ main { max-width: 760px; }
 .ballot-grid .card { margin: 0; }
 @media (prefers-reduced-motion: reduce) {
   .countdown .slot { animation: none; }
+}
+
+/* can't go */
+.cantgo-list .fest-card { opacity: 0.7; }
+.cantgo-list .fest-card .title { text-decoration: line-through; text-decoration-thickness: 1px; }
+.sec-cantgo { border-top: 5px solid #8a1f1f; }
+.sec-cantgo h2 { color: #8a1f1f; }
+button.cantgo-btn { border-color: #c0392b; color: #a12a1e; background: #fff; }
+td.cantgo-hi { color: #8a1f1f; font-weight: 700; }
+.cantgo-line { margin-top: 0.35rem; }
+
+/* festival list: buttons always sit at the right end, never wrap under.
+   (Overrides style.css's phone rule that makes .pool-actions full-width.) */
+.fest-card { flex-wrap: nowrap; align-items: center; }
+.fest-card .fest-body { flex: 1 1 auto; }
+.fest-card .pool-actions { flex: none; flex-direction: column; align-items: stretch; }
+.fest-card .pool-actions button { flex: none; min-height: 38px; white-space: nowrap; }
+@media (min-width: 980px) {
+  .fest-card .pool-actions { flex-direction: row; }
+}
+
+/* phones */
+main { padding-bottom: 5rem; }   /* room to scroll past the floating 🐣 button */
+@media (max-width: 560px) {
+  /* bigger tap targets for ▲ ▼ ✕ */
+  .fest-item .controls button.icon { width: 2.75rem; height: 2.75rem; }
+  /* results/reveal tables: name only; place & dates are on the voting cards */
+  table.results .meta { display: none; }
 }
