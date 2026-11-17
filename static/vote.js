@@ -268,4 +268,45 @@ dropZone.addEventListener("drop", e => {
   if (current !== idx) rank(fid, idx + 1);
 });
 
+/* ---------- comment (debounced auto-save) ---------- */
+
+const commentEl = document.getElementById("comment");
+const commentStatus = document.getElementById("comment-status");
+let commentTimer = null;
+let savedComment = state.comment || "";
+commentEl.value = savedComment;
+
+async function saveComment() {
+  clearTimeout(commentTimer);
+  const body = commentEl.value.trim();
+  if (body === savedComment || !VOTING_OPEN) return;
+  commentStatus.textContent = "saving…";
+  try {
+    const resp = await fetch("/api/comment", {
+      method: "POST", headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({body}),
+    });
+    if (!resp.ok) throw new Error(resp.status);
+    savedComment = (await resp.json()).comment;
+    commentStatus.textContent = "✓ saved";
+  } catch (e) {
+    commentStatus.textContent = "not saved, please retry";
+  }
+}
+
+commentEl.addEventListener("input", () => {
+  commentStatus.textContent = "";
+  clearTimeout(commentTimer);
+  commentTimer = setTimeout(saveComment, 1000);
+});
+commentEl.addEventListener("blur", saveComment);
+window.addEventListener("pagehide", () => {
+  // Best effort for a comment typed just before leaving the page.
+  const body = commentEl.value.trim();
+  if (body !== savedComment && VOTING_OPEN) {
+    fetch("/api/comment", {method: "POST", keepalive: true,
+      headers: {"Content-Type": "application/json"}, body: JSON.stringify({body})});
+  }
+});
+
 render();

@@ -116,15 +116,15 @@ def test_cant_go():
     v.post("/api/rank", json={"festival_id": b, "position": 2})
     # Marking a ranked festival as can't-go takes it out of the ranking.
     st = v.post("/api/cant_go", json={"festival_id": b, "cant_go": True}).get_json()
-    assert st == {"groups": [[a]], "cant_go": [b]}
+    assert st == {"groups": [[a]], "cant_go": [b], "comment": ""}
     st = v.post("/api/cant_go", json={"festival_id": c, "cant_go": True}).get_json()
     assert st["cant_go"] == [b, c]
     # Ranking a can't-go festival clears the mark.
     st = v.post("/api/rank", json={"festival_id": c, "position": 2}).get_json()
-    assert st == {"groups": [[a], [c]], "cant_go": [b]}
+    assert st == {"groups": [[a], [c]], "cant_go": [b], "comment": ""}
     # Undo returns it to the pool (neither ranked nor can't-go).
     st = v.post("/api/cant_go", json={"festival_id": b, "cant_go": False}).get_json()
-    assert st == {"groups": [[a], [c]], "cant_go": []}
+    assert st == {"groups": [[a], [c]], "cant_go": [], "comment": ""}
     v.post("/api/cant_go", json={"festival_id": d, "cant_go": True})
     v.post("/api/cant_go", json={"festival_id": e, "cant_go": True})
 
@@ -160,3 +160,28 @@ def test_headshots_include_avif_and_dedupe():
     assert len(stems) == len(set(stems))          # one photo per person
     for name in ("hannah", "justina"):
         assert name in stems
+
+
+
+def test_comments_private_to_admins():
+    admin = client()
+    appmod.create_admin("kevin", "1234")
+    login(admin, "kevin", "1234")
+    admin.post("/admin/reveal/close")
+    admin.post("/admin/voting/open", data={"until": "2099-11-25T23:59"})
+    v = client()
+    login(v, "Rosa", "2468")
+    st = v.post("/api/comment", json={"body": "  Cost is a worry for me <b>  "}).get_json()
+    assert st["comment"] == "Cost is a worry for me <b>"
+    assert "Cost is a worry" in v.get("/vote").data.decode()   # prefilled for the voter
+    page = admin.get("/admin").data.decode()
+    assert "Cost is a worry for me &lt;b&gt;" in page            # escaped for admins
+    assert "Rosa,Cost is a worry" in admin.get("/admin/export/comments.csv").data.decode()
+    assert v.get("/admin/export/comments.csv").status_code == 403
+    admin.post("/admin/reveal/open")
+    assert "Cost is a worry" not in client().get("/reveal").data.decode()  # never public
+    assert v.post("/api/comment", json={"body": "x"}).status_code == 403  # voting closed
+    admin.post("/admin/reveal/close")
+    admin.post("/admin/voting/open", data={"until": "2099-11-25T23:59"})
+    assert v.post("/api/comment", json={"body": "x" * 2001}).status_code == 400
+    assert v.post("/api/comment", json={"body": "   "}).get_json()["comment"] == ""

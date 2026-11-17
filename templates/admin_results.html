@@ -18,6 +18,7 @@ Scores shift as ballots come in.</div>
     <span class="inline">
       <a href="{{ url_for('export_ballots') }}">⬇ ballots.csv</a>
       <a href="{{ url_for('export_results') }}">⬇ results.csv</a>
+      <a href="{{ url_for('export_comments') }}">⬇ comments.csv</a>
     </span>
   </div>
   <p class="hint">{{ n_voters }} voter(s) have started, {{ n_complete }} ranked all
@@ -83,6 +84,18 @@ Scores shift as ballots come in.</div>
     </tbody>
   </table>
   </div>
+</section>
+
+<section class="card">
+  <h2>💬 Comments <span class="hint-inline">({{ comments | length }})</span></h2>
+  <p class="hint">Free-text comments from voters, newest first. Only admins see these.</p>
+  {% for c in comments %}
+    <div class="voter-comment"><strong>{{ c['username'] }}</strong>
+      <span class="meta">{{ c['updated_at'][:10] }}</span>
+      <p>{{ c['body'] }}</p></div>
+  {% else %}
+    <p class="hint">No comments yet.</p>
+  {% endfor %}
 </section>
 
 <script>

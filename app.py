@@ -233,9 +233,18 @@ def display_order(conn, user_id):
     return fests
 
 
+COMMENT_MAX = 2000
+
+
+def user_comment(conn, user_id):
+    row = conn.execute("SELECT body FROM comments WHERE user_id = ?", (user_id,)).fetchone()
+    return row["body"] if row else ""
+
+
 def ballot_state(conn, user_id):
     return {"groups": user_groups(conn, user_id),
-            "cant_go": user_cant_go(conn, user_id)}
+            "cant_go": user_cant_go(conn, user_id),
+            "comment": user_comment(conn, user_id)}
 
 
 @app.route("/vote")
@@ -332,6 +341,33 @@ def api_cant_go():
                      (g.user["id"], fid))
     conn.commit()
     return jsonify(ballot_state(conn, g.user["id"]))
+
+
+@app.route("/api/comment", methods=["POST"])
+@login_required
+def api_comment():
+    """Save the voter's free-text comment (admins only ever see it).
+    Empty text deletes it."""
+    conn = get_conn()
+    _require_open(conn)
+    body = (request.get_json(force=True).get("body") or "").strip()
+    if len(body) > COMMENT_MAX:
+        abort(400, description=f"Comments are limited to {COMMENT_MAX} characters.")
+    if body:
+        conn.execute("INSERT INTO comments (user_id, body, updated_at) VALUES (?,?,?) "
+                     "ON CONFLICT(user_id) DO UPDATE SET body = excluded.body, "
+                     "updated_at = excluded.updated_at",
+                     (g.user["id"], body, db.utcnow()))
+    else:
+        conn.execute("DELETE FROM comments WHERE user_id = ?", (g.user["id"],))
+    conn.commit()
+    return jsonify(ballot_state(conn, g.user["id"]))
+
+
+def all_comments(conn):
+    return conn.execute(
+        "SELECT u.username, c.body, c.updated_at FROM comments c "
+        "JOIN users u ON u.id = c.user_id ORDER BY c.updated_at DESC").fetchall()
 
 
 @app.route("/api/headshots")
@@ -434,7 +470,9 @@ def results_context(conn):
 @app.route("/admin")
 @admin_required
 def admin_results():
-    return render_template("admin_results.html", **results_context(get_conn()))
+    conn = get_conn()
+    return render_template("admin_results.html", **results_context(conn),
+                           comments=all_comments(conn))
 
 
 @app.route("/admin/setw", methods=["POST"])
@@ -506,6 +544,7 @@ def admin_delete_ballot(uid):
     conn = get_conn()
     conn.execute("DELETE FROM ballot_items WHERE user_id = ?", (uid,))
     conn.execute("DELETE FROM cant_go WHERE user_id = ?", (uid,))
+    conn.execute("DELETE FROM comments WHERE user_id = ?", (uid,))
     conn.commit()
     return redirect(url_for("admin_users"))
 
@@ -639,6 +678,13 @@ def export_ballots():
                    else "cant_go" if fid in cant else "unranked")
             rows.append([u["username"], name, pos])
     return _csv_response("ballots.csv", ["voter", "festival", "position"], rows)
+
+
+@app.route("/admin/export/comments.csv")
+@admin_required
+def export_comments():
+    rows = [[c["username"], c["body"], c["updated_at"]] for c in all_comments(get_conn())]
+    return _csv_response("comments.csv", ["voter", "comment", "updated_at"], rows)
 
 
 @app.route("/admin/export/results.csv")

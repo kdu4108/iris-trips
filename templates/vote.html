@@ -19,6 +19,15 @@
   <p id="all-done" class="hint all-ranked" style="display:none">✅ All done! You can
   still change it until voting closes.</p>
 </section>
+
+<section class="card sec-comment">
+  <h2><label for="comment">💬 Comments <span class="hint-inline">(optional)</span></label>
+    <span id="comment-status" class="comment-status" aria-live="polite"></span></h2>
+  <textarea id="comment" maxlength="2000" rows="3"
+            placeholder="Anything we should know? (Dates that are tricky, cost concerns, etc…)"
+            {% if not voting_open %}disabled{% endif %}></textarea>
+  <p class="hint tiny">Only the organizers see this. It isn't shared in the results.</p>
+</section>
 </div>
 
 <div class="col-pool">

@@ -88,3 +88,11 @@ main { padding-bottom: 5rem; }   /* room to scroll past the floating 🐣 button
   /* results/reveal tables: name only; place & dates are on the voting cards */
   table.results .meta { display: none; }
 }
+
+/* voter comments */
+.sec-comment h2 { display: flex; align-items: center; gap: 0.5rem; }
+.sec-comment textarea { width: 100%; min-height: 4.5rem; resize: vertical;
+  font: inherit; font-size: 0.95rem; }
+.comment-status { margin-left: auto; font-size: 0.75rem; font-weight: 600; color: #1d7a34; }
+.voter-comment { border-top: 1px solid #eeede9; padding: 0.55rem 0; }
+.voter-comment p { margin: 0.2rem 0 0; white-space: pre-wrap; }

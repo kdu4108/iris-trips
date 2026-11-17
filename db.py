@@ -44,6 +44,12 @@ CREATE TABLE IF NOT EXISTS cant_go (
     festival_id INTEGER NOT NULL REFERENCES festivals(id) ON DELETE CASCADE,
     PRIMARY KEY (user_id, festival_id)
 );
+-- One free-text comment per voter, seen by admins only (never revealed).
+CREATE TABLE IF NOT EXISTS comments (
+    user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    body TEXT NOT NULL DEFAULT '',
+    updated_at TEXT NOT NULL
+);
 -- Admin notes per festival (e.g. registration status).
 CREATE TABLE IF NOT EXISTS notes (
     festival_id INTEGER PRIMARY KEY REFERENCES festivals(id) ON DELETE CASCADE,
